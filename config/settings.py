@@ -17,7 +17,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-замените-на-сгенерированный-ключ'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'wrr2%65bqzmuw*khkt9#=jlr56l+%m6u%m&&iw8f^c3!n$pn')
 DATABASE_URL = config('DATABASE_URL', default=None)
 if DATABASE_URL:
     import dj_database_url
