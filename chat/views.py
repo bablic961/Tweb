@@ -3,10 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 from .models import Chat, Message
-from .encryption import encrypt_message, decrypt_message
 from users.models import User, ContactNickname
 import json
-from django.utils import timezone
 
 
 @login_required
@@ -21,13 +19,10 @@ def messenger_view(request):
     nicknames = ContactNickname.objects.filter(owner=request.user)
     nicknames_dict = {n.contact_id: n.nickname for n in nicknames}
 
-    # Подготавливаем данные для каждого чата
     chats_data = []
     for chat in chats:
         other_user = chat.participants.exclude(id=request.user.id).first()
         last_msg = chat.messages.last()
-
-        # Получаем отображаемое имя
         display_name = other_user.username
         if other_user and other_user.id in nicknames_dict:
             display_name = nicknames_dict[other_user.id]
@@ -48,29 +43,22 @@ def messenger_view(request):
 
 @login_required
 def chat_detail(request, chat_id):
-    """Получить сообщения чата (расшифрованные)"""
+    """Получить сообщения чата"""
     chat = get_object_or_404(Chat, id=chat_id)
 
     if request.user not in chat.participants.all():
         return HttpResponseForbidden()
 
-    other_user = chat.participants.exclude(id=request.user.id).first()
     messages = chat.messages.all().order_by('timestamp')
 
     messages_data = []
     for msg in messages:
-        try:
-            if msg.message_type == 'text' and msg.encrypted_text:
-                text = decrypt_message(
-                    chat.id,
-                    msg.sender.id,
-                    other_user.id,
-                    msg.encrypted_text
-                )
-            else:
-                text = ''
-        except:
-            text = '🔒 [не удалось расшифровать]'
+        text = ''
+        if msg.message_type == 'text' and msg.encrypted_text:
+            try:
+                text = msg.encrypted_text.decode()
+            except:
+                text = '🔒 [не удалось расшифровать]'
 
         messages_data.append({
             'id': msg.id,
@@ -88,7 +76,7 @@ def chat_detail(request, chat_id):
 @login_required
 @csrf_exempt
 def send_message(request, chat_id):
-    """Отправить сообщение (с шифрованием)"""
+    """Отправить сообщение"""
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=400)
 
@@ -96,8 +84,6 @@ def send_message(request, chat_id):
 
     if request.user not in chat.participants.all():
         return HttpResponseForbidden()
-
-    other_user = chat.participants.exclude(id=request.user.id).first()
 
     if request.FILES.get('file'):
         file = request.FILES['file']
@@ -120,18 +106,11 @@ def send_message(request, chat_id):
         data = json.loads(request.body)
         text = data.get('text', '')
 
-        encrypted = encrypt_message(
-            chat.id,
-            request.user.id,
-            other_user.id,
-            text
-        )
-
         message = Message.objects.create(
             chat=chat,
             sender=request.user,
             message_type='text',
-            encrypted_text=encrypted
+            encrypted_text=text.encode()
         )
 
     return JsonResponse({
