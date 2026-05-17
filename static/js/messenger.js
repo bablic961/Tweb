@@ -3,49 +3,52 @@ let currentChatId = null;
 let currentOtherUserId = null;
 let currentUserId = null;
 let messagePolling = null;
+let prevMessageCount = 0;
 
-// Ждём загрузки DOM
+// DOM загружен
 document.addEventListener('DOMContentLoaded', function() {
     const userIdElement = document.getElementById('currentUserId');
     if (userIdElement) {
         currentUserId = parseInt(userIdElement.value);
-        console.log('Мессенджер загружен, userId:', currentUserId);
     }
+    initSound();
 });
+
+// Простой звук
+function initSound() {
+    window.notifySound = new Audio();
+    window.notifySound.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+}
+
+function playSound() {
+    if (window.notifySound) {
+        window.notifySound.play().catch(function() {});
+    }
+}
 
 // Открытие чата
 function openChat(chatId) {
-    console.log('Открываем чат:', chatId);
-
     currentChatId = chatId;
-
+    prevMessageCount = 0;
+    
     const chatItem = document.querySelector('[data-chat-id="' + chatId + '"]');
     if (chatItem) {
         currentOtherUserId = parseInt(chatItem.getAttribute('data-other-user-id'));
-        console.log('Собеседник ID:', currentOtherUserId);
     }
-
-    // Подсветка
+    
     document.querySelectorAll('.chat-item').forEach(function(item) {
         item.classList.remove('active');
     });
     if (chatItem) chatItem.classList.add('active');
-
-    // Заголовок
+    
     updateChatHeader();
-
-    // Поле ввода
     document.getElementById('inputArea').style.display = 'flex';
     document.getElementById('messageInput').focus();
-
-    // Загрузка сообщений
     loadMessages(chatId);
-
-    // Автообновление
+    
     if (messagePolling) clearInterval(messagePolling);
     messagePolling = setInterval(function() { loadMessages(chatId); }, 2000);
-
-    // Мобильная версия
+    
     if (window.innerWidth <= 768) {
         document.getElementById('sidebar').style.transform = 'translateX(-100%)';
     }
@@ -53,43 +56,46 @@ function openChat(chatId) {
 
 function updateChatHeader() {
     if (!currentChatId || !currentOtherUserId) return;
-
     const chatItem = document.querySelector('[data-chat-id="' + currentChatId + '"]');
     if (chatItem) {
-        const avatarHtml = chatItem.querySelector('.chat-avatar').innerHTML;
-        const nameText = chatItem.querySelector('.chat-name').textContent.trim();
-
-        document.getElementById('chatHeaderAvatar').innerHTML = avatarHtml;
-        document.getElementById('chatHeaderName').textContent = nameText;
+        document.getElementById('chatHeaderAvatar').innerHTML = chatItem.querySelector('.chat-avatar').innerHTML;
+        document.getElementById('chatHeaderName').textContent = chatItem.querySelector('.chat-name').textContent.trim();
     }
 }
 
 // Загрузка сообщений
 function loadMessages(chatId) {
     if (!chatId) return;
-
+    
     fetch('/chat/' + chatId + '/')
-        .then(function(response) {
-            if (!response.ok) throw new Error('Ошибка ' + response.status);
-            return response.json();
-        })
+        .then(function(response) { return response.json(); })
         .then(function(data) {
             const area = document.getElementById('messagesArea');
             const shouldScroll = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
-
+            
+            // Уведомление о новых сообщениях
+            if (data.messages && data.messages.length > prevMessageCount && prevMessageCount > 0) {
+                const lastMsg = data.messages[data.messages.length - 1];
+                if (lastMsg.sender_id !== currentUserId) {
+                    playSound();
+                    document.title = '🔔 Новое сообщение!';
+                    setTimeout(function() { document.title = 'TeleWeb Messenger'; }, 3000);
+                }
+            }
+            prevMessageCount = data.messages ? data.messages.length : 0;
+            
             area.innerHTML = '';
-
+            
             if (!data.messages || data.messages.length === 0) {
                 area.innerHTML = '<div class="empty-chat"><div class="empty-icon">🔒</div><p>Нет сообщений</p></div>';
                 return;
             }
-
+            
             data.messages.forEach(function(msg) {
                 const div = document.createElement('div');
                 div.className = 'message ' + (msg.sender_id === currentUserId ? 'message-own' : 'message-other');
-
+                
                 let content = '';
-
                 if (msg.type === 'image' && msg.file_url) {
                     content = '<img src="' + msg.file_url + '" style="max-width:200px;border-radius:8px;cursor:pointer" onclick="window.open(this.src)">';
                 } else if (msg.type === 'video' && msg.file_url) {
@@ -97,39 +103,23 @@ function loadMessages(chatId) {
                 } else if (msg.type === 'file' && msg.file_url) {
                     content = '<a href="' + msg.file_url + '" target="_blank">📎 Скачать файл</a>';
                 } else {
-                    content = escapeHtml(msg.text || '');
+                    content = msg.text || '';
                 }
-
+                
                 div.innerHTML = content + '<span class="message-time">' + (msg.timestamp || '') + '</span>';
                 area.appendChild(div);
             });
-
+            
             if (shouldScroll) area.scrollTop = area.scrollHeight;
-            // В конце функции loadMessages, после area.scrollTop = area.scrollHeight;
-if (shouldScroll && data.messages.length > 0) {
-    var lastMsg = data.messages[data.messages.length - 1];
-    // Если сообщение не от текущего пользователя — проиграть звук
-    if (lastMsg.sender_id !== currentUserId) {
-        playNotificationSound();
-        // Мигание заголовка
-        document.title = '🔔 Новое сообщение!';
-        setTimeout(function() {
-            document.title = 'TeleWeb Messenger';
-        }, 3000);
-    }
-}
-        })
-        .catch(function(error) {
-            console.error('Ошибка:', error);
         });
 }
 
-// Отправка текста
+// Отправка сообщения
 function sendMessage() {
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
     if (!text || !currentChatId) return;
-
+    
     fetch('/chat/' + currentChatId + '/send/', {
         method: 'POST',
         headers: {
@@ -159,10 +149,10 @@ function sendFile() {
     const fileInput = document.getElementById('fileInput');
     const file = fileInput.files[0];
     if (!file || !currentChatId) return;
-
+    
     const formData = new FormData();
     formData.append('file', file);
-
+    
     fetch('/chat/' + currentChatId + '/send/', {
         method: 'POST',
         headers: { 'X-CSRFToken': getCookie('csrftoken') },
@@ -196,9 +186,8 @@ function toggleEmojiPicker() {
 }
 
 function insertEmoji(emoji) {
-    const input = document.getElementById('messageInput');
-    input.value += emoji;
-    input.focus();
+    document.getElementById('messageInput').value += emoji;
+    document.getElementById('messageInput').focus();
     toggleEmojiPicker();
 }
 
@@ -211,10 +200,7 @@ document.addEventListener('click', function(e) {
 
 // Никнейм
 function showNicknameModal() {
-    if (!currentOtherUserId) {
-        alert('Сначала выберите чат');
-        return;
-    }
+    if (!currentOtherUserId) { alert('Выберите чат'); return; }
     document.getElementById('nicknameModal').classList.add('active');
 }
 
@@ -225,7 +211,7 @@ function closeModal() {
 function saveNickname() {
     const nickname = document.getElementById('nicknameInput').value.trim();
     if (!nickname || !currentOtherUserId) return;
-
+    
     fetch('/set-nickname/' + currentOtherUserId + '/', {
         method: 'POST',
         headers: {
@@ -265,66 +251,8 @@ function getCookie(name) {
     return cookieValue;
 }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 window.addEventListener('resize', function() {
     if (window.innerWidth > 768) {
         document.getElementById('sidebar').style.transform = 'translateX(0)';
     }
 });
-// Быстрая смена никнейма из чата
-function quickNickname() {
-    if (!currentOtherUserId) {
-        alert('Сначала выберите чат');
-        return;
-    }
-
-    const newNickname = prompt('Введите новый никнейм для этого контакта:');
-    if (newNickname === null) return; // Отмена
-
-    fetch('/set-nickname/' + currentOtherUserId + '/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': getCookie('csrftoken'),
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: 'nickname=' + encodeURIComponent(newNickname)
-    }).then(function(response) {
-        return response.json();
-    }).then(function(data) {
-        if (data.status === 'ok') {
-            // Обновляем заголовок чата
-            updateChatHeader();
-            // Обновляем имя в списке чатов
-            location.reload();
-        }
-    });
-}
-function playNotificationSound() {
-    try {
-        // Создаём простой звуковой сигнал
-        var ctx = new (window.AudioContext || window.webkitAudioContext)();
-        var oscillator = ctx.createOscillator();
-        var gainNode = ctx.createGain();
-
-        oscillator.connect(gainNode);
-        gainNode.connect(ctx.destination);
-
-        oscillator.frequency.value = 800;
-        oscillator.type = 'sine';
-        gainNode.gain.value = 0.3;
-
-        oscillator.start();
-        setTimeout(function() {
-            oscillator.stop();
-            ctx.close();
-        }, 200);
-    } catch(e) {
-        // Без звука если браузер не поддерживает
-    }
-}
