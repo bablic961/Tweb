@@ -23,7 +23,7 @@ class Chat(models.Model):
 
 
 class Message(models.Model):
-    """Зашифрованное сообщение"""
+    """Сообщение"""
     MESSAGE_TYPES = [
         ('text', '💬 Текст'),
         ('image', '🖼 Фото'),
@@ -45,10 +45,15 @@ class Message(models.Model):
         choices=MESSAGE_TYPES,
         default='text'
     )
+    text_content = models.TextField(
+        null=True,
+        blank=True,
+        help_text='Текст сообщения'
+    )
     encrypted_text = models.BinaryField(
         null=True,
         blank=True,
-        help_text='Зашифрованный текст (AES-256)'
+        help_text='Зашифрованный текст (больше не используется)'
     )
     file = models.FileField(
         upload_to='chat_files/',
