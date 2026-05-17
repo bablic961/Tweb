@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h2>Регистрация</h2>
+        <form method="post">
+            {% csrf_token %}
+            <div class="input-group">
+                <input type="text" name="username" placeholder="Логин" required>
+            </div>
+            <div class="input-group">
+                <input type="password" name="password1" placeholder="Пароль" required>
+            </div>
+            <div class="input-group">
+                <input type="password" name="password2" placeholder="Повторите пароль" required>
+            </div>
+            {% if form.errors %}
+            <div class="error-message">{{ form.errors }}</div>
+            {% endif %}
+            <button type="submit" class="btn-primary">Создать аккаунт</button>
+        </form>
+        <p class="auth-link">Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a></p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,294 @@
+// Глобальные переменные
+let currentChatId = null;
+let currentOtherUserId = null;
+let currentUserId = null;
+let messagePolling = null;
+
+// Ждём загрузки DOM
+document.addEventListener('DOMContentLoaded', function() {
+    const userIdElement = document.getElementById('currentUserId');
+    if (userIdElement) {
+        currentUserId = parseInt(userIdElement.value);
+        console.log('Мессенджер загружен, userId:', currentUserId);
+    }
+});
+
+// Открытие чата
+function openChat(chatId) {
+    console.log('Открываем чат:', chatId);
+
+    currentChatId = chatId;
+
+    const chatItem = document.querySelector('[data-chat-id="' + chatId + '"]');
+    if (chatItem) {
+        currentOtherUserId = parseInt(chatItem.getAttribute('data-other-user-id'));
+        console.log('Собеседник ID:', currentOtherUserId);
+    }
+
+    // Подсветка
+    document.querySelectorAll('.chat-item').forEach(function(item) {
+        item.classList.remove('active');
+    });
+    if (chatItem) chatItem.classList.add('active');
+
+    // Заголовок
+    updateChatHeader();
+
+    // Поле ввода
+    document.getElementById('inputArea').style.display = 'flex';
+    document.getElementById('messageInput').focus();
+
+    // Загрузка сообщений
+    loadMessages(chatId);
+
+    // Автообновление
+    if (messagePolling) clearInterval(messagePolling);
+    messagePolling = setInterval(function() { loadMessages(chatId); }, 2000);
+
+    // Мобильная версия
+    if (window.innerWidth <= 768) {
+        document.getElementById('sidebar').style.transform = 'translateX(-100%)';
+    }
+}
+
+function updateChatHeader() {
+    if (!currentChatId || !currentOtherUserId) return;
+
+    const chatItem = document.querySelector('[data-chat-id="' + currentChatId + '"]');
+    if (chatItem) {
+        const avatarHtml = chatItem.querySelector('.chat-avatar').innerHTML;
+        const nameText = chatItem.querySelector('.chat-name').textContent.trim();
+
+        document.getElementById('chatHeaderAvatar').innerHTML = avatarHtml;
+        document.getElementById('chatHeaderName').textContent = nameText;
+    }
+}
+
+// Загрузка сообщений
+function loadMessages(chatId) {
+    if (!chatId) return;
+
+    fetch('/chat/' + chatId + '/')
+        .then(function(response) {
+            if (!response.ok) throw new Error('Ошибка ' + response.status);
+            return response.json();
+        })
+        .then(function(data) {
+            const area = document.getElementById('messagesArea');
+            const shouldScroll = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
+
+            area.innerHTML = '';
+
+            if (!data.messages || data.messages.length === 0) {
+                area.innerHTML = '<div class="empty-chat"><div class="empty-icon">🔒</div><p>Нет сообщений</p></div>';
+                return;
+            }
+
+            data.messages.forEach(function(msg) {
+                const div = document.createElement('div');
+                div.className = 'message ' + (msg.sender_id === currentUserId ? 'message-own' : 'message-other');
+
+                let content = '';
+
+                if (msg.type === 'image' && msg.file_url) {
+                    content = '<img src="' + msg.file_url + '" style="max-width:200px;border-radius:8px;cursor:pointer" onclick="window.open(this.src)">';
+                } else if (msg.type === 'video' && msg.file_url) {
+                    content = '<video controls style="max-width:200px;border-radius:8px"><source src="' + msg.file_url + '"></video>';
+                } else if (msg.type === 'file' && msg.file_url) {
+                    content = '<a href="' + msg.file_url + '" target="_blank">📎 Скачать файл</a>';
+                } else {
+                    content = escapeHtml(msg.text || '');
+                }
+
+                div.innerHTML = content + '<span class="message-time">' + (msg.timestamp || '') + '</span>';
+                area.appendChild(div);
+            });
+
+            if (shouldScroll) area.scrollTop = area.scrollHeight;
+        })
+        .catch(function(error) {
+            console.error('Ошибка:', error);
+        });
+}
+
+// Отправка текста
+function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const text = input.value.trim();
+    if (!text || !currentChatId) return;
+
+    fetch('/chat/' + currentChatId + '/send/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ text: text })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.status === 'ok') {
+            input.value = '';
+            loadMessages(currentChatId);
+        }
+    });
+}
+
+function handleKeyPress(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        sendMessage();
+    }
+}
+
+// Отправка файла
+function sendFile() {
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
+    if (!file || !currentChatId) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fetch('/chat/' + currentChatId + '/send/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        body: formData
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.status === 'ok') {
+            fileInput.value = '';
+            loadMessages(currentChatId);
+        }
+    });
+}
+
+// Поиск
+function filterUsers() {
+    const search = document.getElementById('userSearch').value.toLowerCase();
+    document.querySelectorAll('.user-item').forEach(function(item) {
+        const username = item.getAttribute('data-username') || '';
+        item.style.display = username.includes(search) ? 'flex' : 'none';
+    });
+}
+
+function startChat(userId) {
+    window.location.href = '/start-chat/' + userId + '/';
+}
+
+// Эмодзи
+function toggleEmojiPicker() {
+    document.getElementById('emojiPicker').classList.toggle('active');
+}
+
+function insertEmoji(emoji) {
+    const input = document.getElementById('messageInput');
+    input.value += emoji;
+    input.focus();
+    toggleEmojiPicker();
+}
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.emoji-picker') && !e.target.closest('.emoji-btn')) {
+        const picker = document.getElementById('emojiPicker');
+        if (picker) picker.classList.remove('active');
+    }
+});
+
+// Никнейм
+function showNicknameModal() {
+    if (!currentOtherUserId) {
+        alert('Сначала выберите чат');
+        return;
+    }
+    document.getElementById('nicknameModal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('nicknameModal').classList.remove('active');
+}
+
+function saveNickname() {
+    const nickname = document.getElementById('nicknameInput').value.trim();
+    if (!nickname || !currentOtherUserId) return;
+
+    fetch('/set-nickname/' + currentOtherUserId + '/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: 'nickname=' + encodeURIComponent(nickname)
+    }).then(function() {
+        closeModal();
+        location.reload();
+    });
+}
+
+// Сайдбар
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar.style.transform === 'translateX(-100%)') {
+        sidebar.style.transform = 'translateX(0)';
+    } else {
+        sidebar.style.transform = 'translateX(-100%)';
+    }
+}
+
+// Вспомогательные
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) {
+        document.getElementById('sidebar').style.transform = 'translateX(0)';
+    }
+});
+// Быстрая смена никнейма из чата
+function quickNickname() {
+    if (!currentOtherUserId) {
+        alert('Сначала выберите чат');
+        return;
+    }
+
+    const newNickname = prompt('Введите новый никнейм для этого контакта:');
+    if (newNickname === null) return; // Отмена
+
+    fetch('/set-nickname/' + currentOtherUserId + '/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken'),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: 'nickname=' + encodeURIComponent(newNickname)
+    }).then(function(response) {
+        return response.json();
+    }).then(function(data) {
+        if (data.status === 'ok') {
+            // Обновляем заголовок чата
+            updateChatHeader();
+            // Обновляем имя в списке чатов
+            location.reload();
+        }
+    });
+}

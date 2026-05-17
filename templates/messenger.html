@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<input type="hidden" id="currentUserId" value="{{ request.user.id }}">
+
+<div class="messenger-container">
+    <!-- Боковая панель чатов -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+            <span>Чаты</span>
+            <div>
+                <a href="{% url 'profile' %}" style="color: var(--tg-text-secondary); text-decoration: none; margin-right: 12px;">👤</a>
+                <a href="{% url 'logout' %}" class="logout-btn">Выйти</a>
+            </div>
+        </div>
+
+        <!-- Поиск пользователей -->
+        <div class="search-bar">
+            <input
+                type="text"
+                id="userSearch"
+                placeholder="Поиск пользователя..."
+                onkeyup="filterUsers()"
+            >
+            <div id="searchResults" class="search-results">
+                {% for user in users %}
+                <div class="user-item"
+                     onclick="startChat({{ user.id }})"
+                     data-username="{{ user.username|lower }}">
+                    <div class="user-avatar">
+                        {% if user.avatar %}
+                        <img src="{{ user.avatar.url }}" alt="{{ user.username }}">
+                        {% else %}
+                        <div class="default-avatar">{{ user.username|first|upper }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name">{{ user.username }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Список чатов -->
+        <div class="chat-list" id="chatList">
+            {% for item in chats_data %}
+            <div class="chat-item"
+                 data-chat-id="{{ item.chat.id }}"
+                 data-other-user-id="{{ item.other_user.id }}"
+                 onclick="openChat({{ item.chat.id }})">
+                <div class="chat-avatar">
+                    {% if item.other_user.avatar %}
+                    <img src="{{ item.other_user.avatar.url }}" alt="{{ item.display_name }}">
+                    {% else %}
+                    <div class="default-avatar">{{ item.display_name|first|upper }}</div>
+                    {% endif %}
+                </div>
+                <div class="chat-info">
+                    <div class="chat-name">{{ item.display_name }}</div>
+                    <div class="chat-last-msg">
+                        {% if item.last_msg %}
+                            {% if item.last_msg.message_type == 'text' %}
+                                🔒 зашифровано
+                            {% elif item.last_msg.message_type == 'image' %}
+                                🖼 Фото
+                            {% elif item.last_msg.message_type == 'video' %}
+                                🎬 Видео
+                            {% else %}
+                                📎 Файл
+                            {% endif %}
+                        {% else %}
+                            Нет сообщений
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </aside>
+
+    <!-- Основная область чата -->
+    <main class="chat-main">
+        <div class="chat-header" id="chatHeader">
+            <div class="chat-header-avatar" id="chatHeaderAvatar">
+                <div class="default-avatar">?</div>
+            </div>
+            <div class="chat-header-name" id="chatHeaderName">Выберите чат</div>
+            <button class="nickname-btn" onclick="showNicknameModal()">✏️</button>
+        </div>
+
+        <div class="messages-area" id="messagesArea">
+            <div class="empty-chat">
+                <div class="empty-icon">💬</div>
+                <p>Выберите чат чтобы начать общение</p>
+            </div>
+        </div>
+
+        <div class="message-input-area" id="inputArea" style="display:none;">
+            <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
+            <input type="file" id="fileInput" style="display:none" onchange="sendFile()" accept="image/*,video/*,.pdf,.doc,.docx,.zip">
+            <button class="emoji-btn" onclick="toggleEmojiPicker()">😊</button>
+            <div class="emoji-picker" id="emojiPicker">
+                <span onclick="insertEmoji('😊')">😊</span>
+                <span onclick="insertEmoji('😂')">😂</span>
+                <span onclick="insertEmoji('❤️')">❤️</span>
+                <span onclick="insertEmoji('👍')">👍</span>
+                <span onclick="insertEmoji('🎉')">🎉</span>
+                <span onclick="insertEmoji('🔥')">🔥</span>
+                <span onclick="insertEmoji('😍')">😍</span>
+                <span onclick="insertEmoji('🤔')">🤔</span>
+            </div>
+            <input
+                type="text"
+                id="messageInput"
+                placeholder="Сообщение..."
+                onkeypress="handleKeyPress(event)"
+                autocomplete="off"
+            >
+            <button class="send-btn" onclick="sendMessage()">
+                <svg width="24" height="24" viewBox="0 0 24 24">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="white"/>
+                </svg>
+            </button>
+        </div>
+    </main>
+
+    <!-- Модальное окно для никнейма -->
+    <div class="modal" id="nicknameModal">
+        <div class="modal-content">
+            <h3>Локальная подпись</h3>
+            <input type="text" id="nicknameInput" placeholder="Введите имя...">
+            <button onclick="saveNickname()" class="btn-primary">Сохранить</button>
+            <button onclick="closeModal()" class="btn-secondary">Отмена</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

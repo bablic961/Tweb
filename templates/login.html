@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-logo">
+            <svg width="60" height="60" viewBox="0 0 60 60">
+                <circle cx="30" cy="30" r="28" fill="#2AABEE"/>
+                <path d="M20 25 L40 25 L32 40 L28 32 L20 25Z" fill="white"/>
+            </svg>
+        </div>
+        <h2>TeleWeb</h2>
+        <p class="auth-subtitle">Войдите в аккаунт</p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="input-group">
+                <input type="text" name="username" placeholder="Логин" required>
+            </div>
+            <div class="input-group">
+                <input type="password" name="password" placeholder="Пароль" required>
+            </div>
+            {% if form.errors %}
+            <div class="error-message">Неверный логин или пароль</div>
+            {% endif %}
+            <button type="submit" class="btn-primary">Войти</button>
+        </form>
+
+        <p class="auth-link">Нет аккаунта? <a href="{% url 'register' %}">Зарегистрироваться</a></p>
+    </div>
+</div>
+{% endblock %}

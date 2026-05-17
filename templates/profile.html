@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h2>👤 Мой профиль</h2>
+
+        <!-- Аватар -->
+        <div style="margin: 20px 0;">
+            {% if request.user.avatar %}
+            <img src="{{ request.user.avatar.url }}"
+                 style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
+            {% else %}
+            <div style="width: 100px; height: 100px; border-radius: 50%; background: var(--tg-blue);
+                        display: inline-flex; align-items: center; justify-content: center; font-size: 40px; color: white;">
+                {{ request.user.username|first|upper }}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Форма смены аватара -->
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="input-group">
+                <label style="color: var(--tg-text-secondary); display: block; margin-bottom: 8px;">
+                    Сменить аватар:
+                </label>
+                <input type="file" name="avatar" accept="image/*"
+                       style="color: var(--tg-text);">
+            </div>
+            <button type="submit" class="btn-primary">💾 Сохранить</button>
+        </form>
+
+        <!-- Список контактов и их никнеймы -->
+        <div style="margin-top: 30px; text-align: left;">
+            <h3 style="margin-bottom: 16px;">🏷 Локальные никнеймы</h3>
+
+            {% if contacts %}
+                {% for contact in contacts %}
+                <div style="display: flex; align-items: center; padding: 12px;
+                            background: var(--tg-hover); border-radius: 12px; margin-bottom: 8px;">
+                    <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; margin-right: 12px;">
+                        {% if contact.avatar %}
+                        <img src="{{ contact.avatar.url }}" style="width: 100%; height: 100%; object-fit: cover;">
+                        {% else %}
+                        <div style="width: 100%; height: 100%; background: var(--tg-blue);
+                                    display: flex; align-items: center; justify-content: center; color: white;">
+                            {{ contact.username|first|upper }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 500;">{{ contact.username }}</div>
+                        <div style="color: var(--tg-text-secondary); font-size: 14px;">
+                            {% for n in nicknames %}
+                                {% if n.contact_id == contact.id %}
+                                    Вы зовёте: {{ n.nickname }}
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <button onclick="editNickname({{ contact.id }}, '{{ contact.username }}')"
+                            style="background: var(--tg-blue); border: none; color: white;
+                                   padding: 8px 16px; border-radius: 8px; cursor: pointer;">
+                        ✏️ Изменить
+                    </button>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="color: var(--tg-text-secondary);">У вас пока нет контактов</p>
+            {% endif %}
+        </div>
+
+        <a href="{% url 'messenger' %}" class="btn-secondary"
+           style="display: block; margin-top: 20px; text-decoration: none; text-align: center;">
+            ← Назад в чаты
+        </a>
+    </div>
+</div>
+
+<!-- Модальное окно для изменения никнейма -->
+<div class="modal" id="editNicknameModal">
+    <div class="modal-content">
+        <h3>✏️ Изменить никнейм</h3>
+        <p id="nicknameContactName" style="color: var(--tg-text-secondary); margin-bottom: 16px;"></p>
+        <input type="text" id="editNicknameInput" placeholder="Введите новый никнейм...">
+        <button onclick="saveEditedNickname()" class="btn-primary">💾 Сохранить</button>
+        <button onclick="closeEditModal()" class="btn-secondary">Отмена</button>
+    </div>
+</div>
+
+<script>
+    let currentEditContactId = null;
+
+    function editNickname(contactId, username) {
+        currentEditContactId = contactId;
+        document.getElementById('nicknameContactName').textContent = 'Контакт: ' + username;
+        document.getElementById('editNicknameInput').value = '';
+        document.getElementById('editNicknameModal').classList.add('active');
+        document.getElementById('editNicknameInput').focus();
+    }
+
+    function closeEditModal() {
+        document.getElementById('editNicknameModal').classList.remove('active');
+        currentEditContactId = null;
+    }
+
+    function saveEditedNickname() {
+        const nickname = document.getElementById('editNicknameInput').value.trim();
+        if (!nickname || !currentEditContactId) return;
+
+        fetch('/set-nickname/' + currentEditContactId + '/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: 'nickname=' + encodeURIComponent(nickname)
+        }).then(function() {
+            closeEditModal();
+            location.reload();
+        });
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}
