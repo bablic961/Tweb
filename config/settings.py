@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
-import os
+
 from pathlib import Path
 from decouple import config
 from pathlib import Path
@@ -17,7 +17,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'wrr2%65bqzmuw*khkt9#=jlr56l+%m6u%m&&iw8f^c3!n$pn')
+SECRET_KEY = 'django-insecure-8x9a3b2c1d4e5f6g7h8i9j0k1l2m3n4o5p'
 DATABASE_URL = config('DATABASE_URL', default=None)
 if DATABASE_URL:
     import dj_database_url
