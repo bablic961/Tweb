@@ -9,7 +9,7 @@ class Chat(models.Model):
         related_name='chats'
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    last_read = models.DateTimeField(auto_now_add=True)
+    
 
     class Meta:
         ordering = ['-created_at']
