@@ -9,13 +9,28 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
-
-from pathlib import Path
 import os
+from pathlib import Path
+from decouple import config
+from pathlib import Path
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-замените-на-сгенерированный-ключ'
+DATABASE_URL = config('DATABASE_URL', default=None)
+if DATABASE_URL:
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.config(default=DATABASE_URL)
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 # ПОКА ЧТО СТАВИМ ЗВЁЗДОЧКУ, после деплоя заменим на настоящий URL
