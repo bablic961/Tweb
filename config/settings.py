@@ -121,3 +121,11 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Настройки для Vercel
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.vercel.app',
+    'https://*.vercel.com',
+]
+
+# Использовать сессии на основе cookie вместо базы данных
+SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
