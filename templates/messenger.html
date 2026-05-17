@@ -44,41 +44,47 @@
             </div>
         </div>
 
-        <!-- Список чатов -->
-        <div class="chat-list" id="chatList">
-            {% for item in chats_data %}
-            <div class="chat-item"
-                 data-chat-id="{{ item.chat.id }}"
-                 data-other-user-id="{{ item.other_user.id }}"
-                 onclick="openChat({{ item.chat.id }})">
-                <div class="chat-avatar">
-                    {% if item.other_user.avatar %}
-                    <img src="{{ item.other_user.avatar.url }}" alt="{{ item.display_name }}">
-                    {% else %}
-                    <div class="default-avatar">{{ item.display_name|first|upper }}</div>
-                    {% endif %}
-                </div>
-                <div class="chat-info">
-                    <div class="chat-name">{{ item.display_name }}</div>
-                    <div class="chat-last-msg">
-                        {% if item.last_msg %}
-                            {% if item.last_msg.message_type == 'text' %}
-                                🔒 зашифровано
-                            {% elif item.last_msg.message_type == 'image' %}
-                                🖼 Фото
-                            {% elif item.last_msg.message_type == 'video' %}
-                                🎬 Видео
-                            {% else %}
-                                📎 Файл
-                            {% endif %}
-                        {% else %}
-                            Нет сообщений
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
+      <!-- Список чатов -->
+<div class="chat-list" id="chatList">
+    {% for item in chats_data %}
+    <div class="chat-item"
+         data-chat-id="{{ item.chat.id }}"
+         data-other-user-id="{{ item.other_user.id }}"
+         onclick="openChat({{ item.chat.id }})">
+        <div class="chat-avatar">
+            {% if item.other_user.avatar %}
+            <img src="{{ item.other_user.avatar.url }}" alt="{{ item.display_name }}">
+            {% else %}
+            <div class="default-avatar">{{ item.display_name|first|upper }}</div>
+            {% endif %}
         </div>
+        <div class="chat-info">
+            <div class="chat-name">{{ item.display_name }}</div>
+            <div class="chat-last-msg">
+                {% if item.last_msg %}
+                    {% if item.last_msg.message_type == 'text' %}
+                        🔒 зашифровано
+                    {% elif item.last_msg.message_type == 'image' %}
+                        🖼 Фото
+                    {% elif item.last_msg.message_type == 'video' %}
+                        🎬 Видео
+                    {% else %}
+                        📎 Файл
+                    {% endif %}
+                {% else %}
+                    Нет сообщений
+                {% endif %}
+            </div>
+        </div>
+        <!-- Бейдж с непрочитанными -->
+        {% with unread=item.chat.unread_count %}
+            {% if unread > 0 %}
+            <span class="badge">{{ unread }}</span>
+            {% endif %}
+        {% endwith %}
+    </div>
+    {% endfor %}
+</div>
     </aside>
 
     <!-- Основная область чата -->

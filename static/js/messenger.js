@@ -105,6 +105,19 @@ function loadMessages(chatId) {
             });
 
             if (shouldScroll) area.scrollTop = area.scrollHeight;
+            // В конце функции loadMessages, после area.scrollTop = area.scrollHeight;
+if (shouldScroll && data.messages.length > 0) {
+    var lastMsg = data.messages[data.messages.length - 1];
+    // Если сообщение не от текущего пользователя — проиграть звук
+    if (lastMsg.sender_id !== currentUserId) {
+        playNotificationSound();
+        // Мигание заголовка
+        document.title = '🔔 Новое сообщение!';
+        setTimeout(function() {
+            document.title = 'TeleWeb Messenger';
+        }, 3000);
+    }
+}
         })
         .catch(function(error) {
             console.error('Ошибка:', error);
@@ -291,4 +304,27 @@ function quickNickname() {
             location.reload();
         }
     });
+}
+function playNotificationSound() {
+    try {
+        // Создаём простой звуковой сигнал
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        var oscillator = ctx.createOscillator();
+        var gainNode = ctx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+        gainNode.gain.value = 0.3;
+
+        oscillator.start();
+        setTimeout(function() {
+            oscillator.stop();
+            ctx.close();
+        }, 200);
+    } catch(e) {
+        // Без звука если браузер не поддерживает
+    }
 }
