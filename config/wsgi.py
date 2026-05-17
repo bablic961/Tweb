@@ -3,7 +3,7 @@ from django.core.wsgi import get_wsgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 
-# Автоматически создаём таблицы при запуске
+# Запускаем миграции при каждом деплое
 from django.core.management import call_command
 import django
 django.setup()
