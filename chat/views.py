@@ -6,6 +6,7 @@ from .models import Chat, Message
 from .encryption import encrypt_message, decrypt_message
 from users.models import User, ContactNickname
 import json
+from django.utils import timezone
 
 
 @login_required
