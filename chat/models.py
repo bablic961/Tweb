@@ -9,16 +9,9 @@ class Chat(models.Model):
         related_name='chats'
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    
 
     class Meta:
         ordering = ['-created_at']
-
-    def unread_count(self, user):
-        """Количество непрочитанных сообщений для пользователя"""
-        return self.messages.filter(
-            timestamp__gt=self.last_read
-        ).exclude(sender=user).count()
 
     def get_other_user(self, current_user):
         """Возвращает собеседника"""
